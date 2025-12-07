@@ -1,11 +1,11 @@
 {
   "domain": "nuheat_conductor",
   "name": "Nuheat Conductor",
-  "codeowners": [],
+  "codeowners": ["@SmilesGalore"],
   "config_flow": true,
-  "documentation": "https://www.home-assistant.io/integrations/nuheat_conductor",
-  "integration_type": "hub",
+  "documentation": "https://github.com/SmilesGalore/HA-Nuheat-Conductor",
+  "issue_tracker": "https://github.com/SmilesGalore/HA-Nuheat-Conductor/issues",
   "iot_class": "cloud_polling",
   "requirements": [],
-  "version": "1.0.0"
+  "version": "0.1.0"
 }
