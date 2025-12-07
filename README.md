@@ -15,6 +15,7 @@ A custom Home Assistant integration for Nuheat Conductor radiant heating thermos
 - Home Assistant instance (core-2024.1.0 or later)
 - Nuheat Conductor thermostat system
 - Nuheat account credentials
+- API access enabled by Nuheat (contact Nuheat support to enable the `openapi` scope)
 
 ## Installation
 
@@ -25,7 +26,7 @@ _Coming soon - pending HACS submission_
 ### Manual Installation
 
 1. Download or clone this repository
-2. Copy the `nuheat_conductor` folder to your Home Assistant `config/custom_components/` directory
+2. Copy the `custom_components/nuheat_conductor` folder to your Home Assistant `config/custom_components/` directory
 3. Restart Home Assistant
 
 Your directory structure should look like:
@@ -159,8 +160,8 @@ This integration follows Home Assistant's coding standards:
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/yourusername/nuheat-conductor-hass/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/yourusername/nuheat-conductor-hass/discussions)
+- **Issues:** [GitHub Issues](https://github.com/SmilesGalore/HA-Nuheat-Conductor/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/SmilesGalore/HA-Nuheat-Conductor/discussions)
 - **Home Assistant Community:** [Home Assistant Forums](https://community.home-assistant.io/)
 
 ## Contributing
@@ -181,7 +182,7 @@ Contributions are welcome! Please:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache-2.0 License - see the [LICENSE](LICENSE) file for details.
 
 ## Disclaimer
 
