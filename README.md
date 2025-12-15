@@ -13,16 +13,6 @@ A custom Home Assistant integration for Nuheat Conductor radiant heating thermos
 - 🔐 **Secure OAuth2**: Uses official Nuheat OAuth2 authentication
 - 📊 **Detailed Attributes**: View schedule mode (Schedule, Temporary Hold, Permanent Hold) and online status
 
-## Prerequisites
-
-Before installing this integration, you need to contact Nuheat support to enable API access:
-
-1. **Contact Nuheat Support** and request the `openapi` scope be enabled on your account
-2. Explain you're using the Home Assistant integration
-3. Wait for confirmation that the scope has been enabled
-
-Without this step, the OAuth2 authentication will fail to access the API endpoints.
-
 ## Installation
 
 ### HACS (Recommended)
@@ -78,12 +68,6 @@ Each thermostat entity includes additional attributes:
 
 ## Troubleshooting
 
-### Authentication Fails
-
-**Problem**: OAuth2 authentication completes but API calls fail with authentication errors.
-
-**Solution**: Contact Nuheat support to ensure the `openapi` scope is enabled on your account. This is required for API access.
-
 ### Thermostats Show as Offline
 
 **Problem**: Thermostats appear but show as "Off" with offline status.
@@ -114,7 +98,7 @@ Each thermostat entity includes additional attributes:
 
 ## API Information
 
-This integration uses the Nuheat API v1:
+This integration uses the Nuheat Conductor API v1:
 - **Auth**: https://identity.nam.mynuheat.com
 - **API**: https://api.nam.mynuheat.com/api/v1
 
@@ -132,4 +116,4 @@ Developed by [@SmilesGalore](https://github.com/SmilesGalore)
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License - see the [LICENSE](LICENSE) file for details.
