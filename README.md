@@ -1,193 +1,135 @@
-# Nuheat Conductor Thermostat Integration for Home Assistant
+# Nuheat Conductor Integration for Home Assistant
 
-A custom Home Assistant integration for Nuheat Conductor radiant heating thermostats. Control and monitor your Nuheat heating systems directly from Home Assistant.
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+
+A custom Home Assistant integration for Nuheat Conductor radiant heating thermostats using OAuth2 authentication.
 
 ## Features
 
-- 🌡️ **Climate Control** - Full thermostat control through Home Assistant's climate platform
-- 🔐 **Secure OAuth2 Authentication** - Browser-based OAuth2 Authorization Code flow
-- 📊 **Real-time Monitoring** - Current temperature and heating status
-- 🎯 **Temperature Control** - Set target temperatures and heating modes
-- 🔄 **Auto-discovery** - Automatically discovers all thermostats on your Nuheat account
+- 🌡️ **Temperature Control**: Set target temperatures with temporary or permanent holds
+- 📅 **Schedule Management**: Switch between scheduled operation and manual control
+- 🔄 **Real-time Status**: Monitor current temperature, heating status, and online/offline state
+- 🌍 **Multi-Unit Support**: Automatically detects Celsius or Fahrenheit from your Nuheat account preferences
+- 🔐 **Secure OAuth2**: Uses official Nuheat OAuth2 authentication
+- 📊 **Detailed Attributes**: View schedule mode (Schedule, Temporary Hold, Permanent Hold) and online status
 
 ## Prerequisites
 
-- Home Assistant instance (core-2024.1.0 or later)
-- Nuheat Conductor thermostat system
-- Nuheat account credentials
-- API access enabled by Nuheat (contact Nuheat support to enable the `openapi` scope)
+Before installing this integration, you need to contact Nuheat support to enable API access:
+
+1. **Contact Nuheat Support** and request the `openapi` scope be enabled on your account
+2. Explain you're using the Home Assistant integration
+3. Wait for confirmation that the scope has been enabled
+
+Without this step, the OAuth2 authentication will fail to access the API endpoints.
 
 ## Installation
 
 ### HACS (Recommended)
 
-_Coming soon - pending HACS submission_
+1. Open HACS in Home Assistant
+2. Click on "Integrations"
+3. Click the three dots in the top right corner
+4. Select "Custom repositories"
+5. Add this repository URL: `https://github.com/SmilesGalore/HA-Nuheat-Conductor`
+6. Select category: "Integration"
+7. Click "Add"
+8. Search for "Nuheat Conductor" in HACS
+9. Click "Download"
+10. Restart Home Assistant
 
 ### Manual Installation
 
-1. Download or clone this repository
-2. Copy the `custom_components/nuheat_conductor` folder to your Home Assistant `config/custom_components/` directory
+1. Download the latest release from the [releases page](https://github.com/SmilesGalore/HA-Nuheat-Conductor/releases)
+2. Copy the `custom_components/nuheat_conductor` folder to your `config/custom_components/` directory
 3. Restart Home Assistant
 
-Your directory structure should look like:
-```
-config/
-├── custom_components/
-│   └── nuheat_conductor/
-│       ├── __init__.py
-│       ├── climate.py
-│       ├── config_flow.py
-│       ├── const.py
-│       ├── manifest.json
-│       └── strings.json
-```
-
 ## Configuration
-
-### Adding the Integration
 
 1. Go to **Settings** → **Devices & Services**
 2. Click **+ Add Integration**
 3. Search for "Nuheat Conductor"
-4. Click on the integration to begin setup
-5. You'll be redirected to Nuheat's login page in your browser
-6. Enter your Nuheat credentials and authorize Home Assistant
-7. You'll be redirected back to Home Assistant with the integration configured
-
-### OAuth2 Setup
-
-This integration uses OAuth2 Authorization Code flow for secure authentication:
-- No need to enter credentials directly in Home Assistant
-- Tokens are securely stored and automatically refreshed
-- Authorization happens in your web browser
+4. Click on it to start the OAuth2 flow
+5. You'll be redirected to Nuheat's login page
+6. Log in with your Nuheat account credentials
+7. Authorize Home Assistant to access your thermostats
+8. Your thermostats will be automatically discovered and added
 
 ## Usage
 
-Once configured, your Nuheat thermostats will appear as climate entities in Home Assistant.
+### Temperature Control
 
-### Basic Operations
+- Use the temperature up/down buttons to adjust the setpoint
+- Changes create a **temporary hold** that lasts until the next scheduled change
+- The integration automatically uses your preferred temperature unit (Celsius or Fahrenheit)
 
-**View in Lovelace:**
-```yaml
-type: thermostat
-entity: climate.nuheat_living_room
-```
+### HVAC Modes
 
-**Set Temperature:**
-```yaml
-service: climate.set_temperature
-target:
-  entity_id: climate.nuheat_living_room
-data:
-  temperature: 72
-```
+- **Heat**: Manual temperature control with temporary hold
+- **Auto**: Follow the programmed schedule
+- **Off**: Displayed when thermostat is offline (cannot be manually set)
 
-**Set HVAC Mode:**
-```yaml
-service: climate.set_hvac_mode
-target:
-  entity_id: climate.nuheat_living_room
-data:
-  hvac_mode: heat
-```
+### Attributes
 
-### Available HVAC Modes
+Each thermostat entity includes additional attributes:
 
-- `heat` - Heating enabled
-- `off` - Heating disabled
-
-## API Endpoints
-
-This integration connects to:
-- **Identity Server:** `https://identity.nam.mynuheat.com`
-- **API Server:** `https://api.nam.mynuheat.com`
+- **Status**: Online or Offline
+- **Schedule Mode**: Schedule, Temporary Hold, or Permanent Hold
 
 ## Troubleshooting
 
-### Integration Not Appearing
+### Authentication Fails
 
-1. Ensure files are in the correct directory: `config/custom_components/nuheat_conductor/`
-2. Restart Home Assistant completely
-3. Check Home Assistant logs for errors: **Settings** → **System** → **Logs**
+**Problem**: OAuth2 authentication completes but API calls fail with authentication errors.
 
-### Authentication Failures
+**Solution**: Contact Nuheat support to ensure the `openapi` scope is enabled on your account. This is required for API access.
 
-1. Verify you have the correct Nuheat credentials
-2. Confirm Nuheat has enabled the `openapi` scope for your account
-3. Check that you can log in to the Nuheat web portal at [mynuheat.com](https://www.mynuheat.com)
-4. Try removing and re-adding the integration
+### Thermostats Show as Offline
 
-### 500 Errors During Setup
+**Problem**: Thermostats appear but show as "Off" with offline status.
 
-- This typically indicates the `openapi` scope is not enabled for your account
-- Contact Nuheat support to request API access
+**Solution**: 
+- Check that your thermostats have power and WiFi connectivity
+- Verify they appear as online in the Nuheat mobile app
+- The integration cannot control offline thermostats - changes will be rejected by the API
 
-### No Thermostats Discovered
+### Temperature Changes Don't Apply
 
-1. Verify your thermostats appear in the Nuheat mobile app or web portal
-2. Check Home Assistant logs for API errors
-3. Try reloading the integration: **Settings** → **Devices & Services** → **Nuheat Conductor** → **⋮** → **Reload**
+**Problem**: Temperature adjustments revert immediately.
 
-## Development
+**Solution**: This happens when thermostats are offline. The integration automatically reverts failed changes. Wait for thermostats to come back online.
 
-### Local Development Setup
+### Wrong Temperature Unit
 
-1. Clone the Home Assistant development environment:
-```bash
-git clone https://github.com/home-assistant/core.git
-cd core
-```
+**Problem**: Temperatures display in wrong unit (Celsius vs Fahrenheit).
 
-2. Set up the development environment following [Home Assistant's developer documentation](https://developers.home-assistant.io/docs/development_environment)
+**Solution**: The integration uses your Nuheat account preference. Log into your Nuheat account and change the temperature scale setting, then reload the integration.
 
-3. Copy the integration files to `config/custom_components/nuheat_conductor/`
+## Known Limitations
 
-4. Start Home Assistant in development mode
+- Cannot control thermostats that are offline
+- Temperature changes create temporary holds by default (permanent holds must be set via Nuheat app)
+- Polling interval is 5 minutes (real-time updates not available from API)
+- Requires manual enablement of API access by Nuheat support
 
-### Running Tests
+## API Information
 
-```bash
-pytest tests/components/nuheat_conductor/
-```
+This integration uses the Nuheat API v1:
+- **Auth**: https://identity.nam.mynuheat.com
+- **API**: https://api.nam.mynuheat.com/api/v1
 
-### Code Quality
-
-This integration follows Home Assistant's coding standards:
-- Type hints throughout
-- Async/await patterns
-- Comprehensive error handling
-- Proper entity lifecycle management
+API documentation: https://api.nam.mynuheat.com/swagger/index.html
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/SmilesGalore/HA-Nuheat-Conductor/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/SmilesGalore/HA-Nuheat-Conductor/discussions)
-- **Home Assistant Community:** [Home Assistant Forums](https://community.home-assistant.io/)
+For issues and feature requests, please use the [GitHub issue tracker](https://github.com/SmilesGalore/HA-Nuheat-Conductor/issues).
 
-## Contributing
+For Nuheat account or API access issues, contact Nuheat support directly.
 
-Contributions are welcome! Please:
+## Credits
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Acknowledgments
-
-- Thanks to the Home Assistant community for their excellent documentation
-- Nuheat for providing API access
-- All contributors who help improve this integration
+Developed by [@SmilesGalore](https://github.com/SmilesGalore)
 
 ## License
 
-This project is licensed under the Apache-2.0 License - see the [LICENSE](LICENSE) file for details.
-
-## Disclaimer
-
-This is an unofficial integration and is not affiliated with, endorsed by, or supported by Nuheat. Use at your own risk.
-
----
-
-**Note:** This integration is currently in development. Features and functionality may change as development progresses.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
