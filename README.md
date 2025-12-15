@@ -94,7 +94,6 @@ Each thermostat entity includes additional attributes:
 - Cannot control thermostats that are offline
 - Temperature changes create temporary holds by default (permanent holds must be set via Nuheat app)
 - Polling interval is 5 minutes (real-time updates not available from API)
-- Requires manual enablement of API access by Nuheat support
 
 ## API Information
 
