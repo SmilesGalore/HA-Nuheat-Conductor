@@ -7,11 +7,26 @@ A custom Home Assistant integration for Nuheat Conductor radiant heating thermos
 ## Features
 
 - 🌡️ **Temperature Control**: Set target temperatures with temporary or permanent holds
-- 📅 **Schedule Management**: Switch between scheduled operation and manual control
+- 📅 **Schedule Management**: Switch between scheduled operation, temporary hold, and permanent hold
+- 🏠 **Group Control**: Manage thermostat groups with Home/Away modes
 - 🔄 **Real-time Status**: Monitor current temperature, heating status, and online/offline state
 - 🌍 **Multi-Unit Support**: Automatically detects Celsius or Fahrenheit from your Nuheat account preferences
 - 🔐 **Secure OAuth2**: Uses official Nuheat OAuth2 authentication
-- 📊 **Detailed Attributes**: View schedule mode (Schedule, Temporary Hold, Permanent Hold) and online status
+- 📊 **Detailed Attributes**: View schedule mode and online status for individual thermostats
+
+## What Gets Created
+
+### Individual Thermostats
+Each thermostat in your Nuheat system becomes a climate entity with:
+- **Temperature control** with up/down buttons
+- **Preset modes**: Auto (follow schedule), Hold (temporary until next schedule), Permanent Hold
+- **Status attributes**: Online/Offline status
+
+### Thermostat Groups
+Each group in your Nuheat system becomes a climate entity with:
+- **Name prefix**: "Group: [Group Name]"
+- **Preset modes**: Home (normal operation), Away (enable away mode for all thermostats in group)
+- **Away temperature**: Shows the configured away setpoint temperature
 
 ## Installation
 
@@ -43,28 +58,39 @@ A custom Home Assistant integration for Nuheat Conductor radiant heating thermos
 5. You'll be redirected to Nuheat's login page
 6. Log in with your Nuheat account credentials
 7. Authorize Home Assistant to access your thermostats
-8. Your thermostats will be automatically discovered and added
+8. Your thermostats and groups will be automatically discovered and added
 
 ## Usage
 
-### Temperature Control
+### Individual Thermostat Control
 
+**Temperature Adjustment:**
 - Use the temperature up/down buttons to adjust the setpoint
-- Changes create a **temporary hold** that lasts until the next scheduled change
-- The integration automatically uses your preferred temperature unit (Celsius or Fahrenheit)
+- Changes automatically create a **Hold** (temporary hold until next scheduled change)
 
-### HVAC Modes
-
-- **Heat**: Manual temperature control with temporary hold
+**Preset Modes:**
 - **Auto**: Follow the programmed schedule
-- **Off**: Displayed when thermostat is offline (cannot be manually set)
+- **Hold**: Temporary hold until the next scheduled change (automatically set when adjusting temperature)
+- **Permanent Hold**: Hold the temperature indefinitely until manually changed
+
+### Group Control
+
+**Home/Away Management:**
+- **Home**: Normal operation - thermostats follow their individual schedules
+- **Away**: Enable away mode for all thermostats in the group using the configured away temperature
+
+**Away Temperature:**
+- The away setpoint temperature is displayed and configured in the Nuheat app
+- Groups show this temperature when in Away mode
 
 ### Attributes
 
-Each thermostat entity includes additional attributes:
-
+**Individual Thermostats:**
 - **Status**: Online or Offline
-- **Schedule Mode**: Schedule, Temporary Hold, or Permanent Hold
+
+**Groups:**
+- **Away Mode**: On or Off
+- **Away Setpoint**: The temperature used when in away mode
 
 ## Troubleshooting
 
@@ -89,11 +115,21 @@ Each thermostat entity includes additional attributes:
 
 **Solution**: The integration uses your Nuheat account preference. Log into your Nuheat account and change the temperature scale setting, then reload the integration.
 
+### Groups Not Appearing
+
+**Problem**: Individual thermostats appear but groups don't.
+
+**Solution**: 
+- Ensure you have created groups in the Nuheat app
+- Reload the integration to refresh the entity list
+- Check Home Assistant logs for any errors during setup
+
 ## Known Limitations
 
 - Cannot control thermostats that are offline
-- Temperature changes create temporary holds by default (permanent holds must be set via Nuheat app)
+- Temperature changes create temporary holds by default (use Permanent Hold preset for indefinite holds)
 - Polling interval is 5 minutes (real-time updates not available from API)
+- Away temperature for groups is configured in the Nuheat app (cannot be changed from Home Assistant)
 
 ## API Information
 
