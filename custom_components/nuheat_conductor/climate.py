@@ -99,6 +99,26 @@ class NuheatConductorAPI:
             return data
         return []
 
+    async def get_groups(self) -> list[Any]:
+        """Get list of thermostat groups."""
+        data = await self._make_request("GET", "/api/v1/Group")
+        if isinstance(data, list):
+            return data
+        return []
+
+    async def set_group_away_mode(self, group_id: str, away_mode: bool) -> bool:
+        """Set away mode for a group.
+        
+        Args:
+            group_id: The group ID
+            away_mode: True to enable away mode, False to disable
+        
+        """
+        data = {"groupId": group_id, "awayMode": away_mode}
+        _LOGGER.debug("Setting group away mode: %s", data)
+        result = await self._make_request("PUT", "/api/v1/Group", json=data)
+        return result is not None
+
     async def get_account_info(self) -> dict | None:
         """Get account information including temperature scale preference."""
         data = await self._make_request("GET", "/api/v1/Account")
@@ -188,26 +208,44 @@ async def async_setup_entry(
             elif scale == "Fahrenheit":
                 temp_scale = UnitOfTemperature.FAHRENHEIT
         
+        # Get thermostats
         thermostats = await api.get_thermostats()
         _LOGGER.debug("Found %d thermostats", len(thermostats))
 
+        # Get groups
+        groups = await api.get_groups()
+        _LOGGER.debug("Found %d groups", len(groups))
+
+        # Create thermostat entities
         entities = [
             NuheatConductorThermostat(
                 api, thermostat, entry.entry_id, temp_scale, use_12_hour
             )
             for thermostat in thermostats
         ]
+        
+        # Create group entities
+        entities.extend([
+            NuheatConductorGroup(
+                api, group, entry.entry_id, temp_scale, use_12_hour
+            )
+            for group in groups
+        ])
+        
         async_add_entities(entities, True)
     except Exception:
-        _LOGGER.exception("Failed to get thermostats")
+        _LOGGER.exception("Failed to get thermostats and groups")
 
 
 class NuheatConductorThermostat(ClimateEntity):
     """Representation of a Nuheat Conductor thermostat."""
 
     _attr_has_entity_name = True
-    _attr_hvac_modes = [HVACMode.HEAT, HVACMode.AUTO, HVACMode.OFF]
-    _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
+    _attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
+    _attr_preset_modes = ["Auto", "Hold", "Permanent Hold"]
+    _attr_supported_features = (
+        ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+    )
 
     def __init__(
         self,
@@ -302,9 +340,18 @@ class NuheatConductorThermostat(ClimateEntity):
         # Show as OFF when thermostat is offline
         if not self._is_online:
             return HVACMode.OFF
-        if self._schedule_mode == 1:
-            return HVACMode.AUTO
         return HVACMode.HEAT
+
+    @property
+    def preset_mode(self) -> str | None:
+        """Return the current preset mode."""
+        if self._schedule_mode == 1:
+            return "Auto"
+        elif self._schedule_mode == 2:
+            return "Hold"
+        elif self._schedule_mode == 3:
+            return "Permanent Hold"
+        return None
 
     @property
     def hvac_action(self) -> HVACAction:
@@ -321,12 +368,9 @@ class NuheatConductorThermostat(ClimateEntity):
         """Return additional state attributes."""
         attrs: dict[str, Any] = {}
         
-        # Show online/offline status prominently
+        # Show online/offline status
         attrs["status"] = "Online" if self._is_online else "Offline"
         
-        if self._schedule_mode:
-            mode_names = {1: "Schedule", 2: "Temporary Hold", 3: "Permanent Hold"}
-            attrs["schedule_mode"] = mode_names.get(self._schedule_mode, "Unknown")
         return attrs
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
@@ -361,24 +405,41 @@ class NuheatConductorThermostat(ClimateEntity):
             await self.async_update()
             self.async_write_ha_state()
 
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Set preset mode."""
+        if not self._thermostat_id:
+            return
+
+        # Map preset mode to schedule mode
+        mode_map = {
+            "Auto": 1,  # Schedule
+            "Hold": 2,  # Temporary hold
+            "Permanent Hold": 3,  # Permanent hold
+        }
+        
+        mode = mode_map.get(preset_mode)
+        if mode is None:
+            _LOGGER.error("Unknown preset mode: %s", preset_mode)
+            return
+
+        success = await self._api.set_schedule_mode(self._thermostat_id, mode)
+        if success:
+            self._schedule_mode = mode
+            self.async_write_ha_state()
+        else:
+            _LOGGER.warning(
+                "Failed to set preset mode for %s, reverting to actual state",
+                self._attr_name,
+            )
+            await self.async_update()
+            self.async_write_ha_state()
+
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set HVAC mode."""
         if not self._thermostat_id:
             return
 
-        if hvac_mode == HVACMode.AUTO:
-            success = await self._api.set_schedule_mode(self._thermostat_id, 1)
-            if success:
-                self._schedule_mode = 1
-                self.async_write_ha_state()
-            else:
-                _LOGGER.warning(
-                    "Failed to set schedule mode for %s, reverting to actual state",
-                    self._attr_name,
-                )
-                await self.async_update()
-                self.async_write_ha_state()
-        elif hvac_mode == HVACMode.HEAT:
+        if hvac_mode == HVACMode.HEAT:
             if self._target_temperature:
                 await self.async_set_temperature(temperature=self._target_temperature)
         elif hvac_mode == HVACMode.OFF:
@@ -397,3 +458,118 @@ class NuheatConductorThermostat(ClimateEntity):
         else:
             # Only mark unavailable if we can't reach the API at all
             self._attr_available = False
+
+
+class NuheatConductorGroup(ClimateEntity):
+    """Representation of a Nuheat Conductor thermostat group."""
+
+    _attr_has_entity_name = True
+    _attr_hvac_modes = [HVACMode.HEAT]
+    _attr_preset_modes = ["Home", "Away"]
+    _attr_supported_features = ClimateEntityFeature.PRESET_MODE
+
+    def __init__(
+        self,
+        api: NuheatConductorAPI,
+        group_data: dict,
+        entry_id: str,
+        temperature_unit: UnitOfTemperature,
+        use_12_hour: bool = True,
+    ) -> None:
+        """Initialize the group."""
+        self._api = api
+        self._group_id: str = group_data.get("groupId", "")
+        group_name = group_data.get("groupName", "Nuheat Group")
+        self._attr_name = f"Group: {group_name}"
+        self._attr_unique_id = f"nuheat_conductor_group_{self._group_id}"
+        self._attr_temperature_unit = temperature_unit
+        self._use_12_hour = use_12_hour
+        self._away_mode: bool = False
+        self._away_setpoint: float | None = None
+        self._attr_available = True
+
+        # Set initial values from group data
+        self._update_from_data(group_data)
+
+    def _update_from_data(self, data: dict) -> None:
+        """Update internal state from group data."""
+        if not data:
+            return
+
+        self._away_mode = data.get("awayMode", False)
+        
+        # Convert away setpoint temperature
+        away_temp = data.get("awaySetPointTemp")
+        self._away_setpoint = away_temp / 100.0 if away_temp is not None else None
+
+    @property
+    def hvac_mode(self) -> HVACMode:
+        """Return current HVAC mode - groups are always in HEAT."""
+        return HVACMode.HEAT
+
+    @property
+    def preset_mode(self) -> str | None:
+        """Return the current preset mode."""
+        if self._away_mode:
+            return "Away"
+        return "Home"
+
+    @property
+    def current_temperature(self) -> float | None:
+        """Groups don't report current temperature."""
+        return None
+
+    @property
+    def target_temperature(self) -> float | None:
+        """Return the away setpoint temperature."""
+        return self._away_setpoint
+
+    @property
+    def extra_state_attributes(self) -> Mapping[str, Any] | None:
+        """Return additional state attributes."""
+        attrs: dict[str, Any] = {}
+        attrs["away_mode"] = "On" if self._away_mode else "Off"
+        if self._away_setpoint is not None:
+            attrs["away_setpoint"] = self._away_setpoint
+        return attrs
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Set preset mode - Home or Away."""
+        if not self._group_id:
+            return
+
+        # "Away" preset enables away mode, "Home" disables it
+        away_mode = preset_mode == "Away"
+        
+        success = await self._api.set_group_away_mode(self._group_id, away_mode)
+        if success:
+            self._away_mode = away_mode
+            _LOGGER.debug("Group %s preset set to %s", self._attr_name, preset_mode)
+            self.async_write_ha_state()
+        else:
+            _LOGGER.warning(
+                "Failed to set preset mode for %s, reverting to actual state",
+                self._attr_name,
+            )
+            await self.async_update()
+            self.async_write_ha_state()
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Groups don't support HVAC mode changes."""
+        pass
+
+    async def async_update(self) -> None:
+        """Update group data."""
+        if not self._group_id:
+            return
+
+        # Fetch all groups and find ours
+        groups = await self._api.get_groups()
+        for group in groups:
+            if group.get("groupId") == self._group_id:
+                self._update_from_data(group)
+                self._attr_available = True
+                return
+        
+        # Group not found
+        self._attr_available = False
