@@ -243,9 +243,8 @@ class NuheatConductorThermostat(ClimateEntity):
     _attr_has_entity_name = True
     _attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
     _attr_preset_modes = ["Auto", "Hold", "Permanent Hold"]
-    _attr_supported_features = (
-        ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
-    )
+    # Don't set _attr_supported_features as static - use property instead
+    # so we can disable controls when offline
 
     def __init__(
         self,
@@ -302,8 +301,13 @@ class NuheatConductorThermostat(ClimateEntity):
         self._max_temperature = max_temp / 100.0 if max_temp is not None else None
         
         self._schedule_mode = data.get("scheduleMode")
-        self._is_heating = data.get("isHeating", False)
         self._is_online = data.get("online", True)
+        
+        # If offline, override heating status to prevent showing active heating
+        if not self._is_online:
+            self._is_heating = False
+        else:
+            self._is_heating = data.get("isHeating", False)
         
         # Keep entity available even when offline so data still displays
         # We'll indicate offline status through hvac_action and attributes
@@ -337,7 +341,7 @@ class NuheatConductorThermostat(ClimateEntity):
     @property
     def hvac_mode(self) -> HVACMode:
         """Return current HVAC mode."""
-        # Show as OFF when thermostat is offline
+        # Show as OFF when offline so UI clearly indicates no active control
         if not self._is_online:
             return HVACMode.OFF
         return HVACMode.HEAT
@@ -354,9 +358,19 @@ class NuheatConductorThermostat(ClimateEntity):
         return None
 
     @property
+    def supported_features(self) -> ClimateEntityFeature:
+        """Return the list of supported features."""
+        # Disable all controls when thermostat is offline
+        if not self._is_online:
+            return ClimateEntityFeature(0)  # No features when offline
+        return (
+            ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+        )
+
+    @property
     def hvac_action(self) -> HVACAction:
         """Return current HVAC action."""
-        # Show offline status prominently
+        # Show OFF when offline (entity stays available to show settings)
         if not self._is_online:
             return HVACAction.OFF
         if self._is_heating:
@@ -368,8 +382,12 @@ class NuheatConductorThermostat(ClimateEntity):
         """Return additional state attributes."""
         attrs: dict[str, Any] = {}
         
-        # Show online/offline status
-        attrs["status"] = "Online" if self._is_online else "Offline"
+        # Show prominent online/offline status
+        attrs["connection_status"] = "Online" if self._is_online else "Offline"
+        
+        # Add warning badge for offline thermostats
+        if not self._is_online:
+            attrs["warning"] = "Thermostat is offline - showing last known settings"
         
         return attrs
 
@@ -377,6 +395,14 @@ class NuheatConductorThermostat(ClimateEntity):
         """Set new target temperature."""
         temperature = kwargs.get("temperature")
         if temperature is None or not self._thermostat_id:
+            return
+
+        # Prevent changes when thermostat is offline
+        if not self._is_online:
+            _LOGGER.warning(
+                "Cannot set temperature for %s - thermostat is offline",
+                self._attr_name,
+            )
             return
 
         _LOGGER.debug(
@@ -410,6 +436,14 @@ class NuheatConductorThermostat(ClimateEntity):
         if not self._thermostat_id:
             return
 
+        # Prevent changes when thermostat is offline
+        if not self._is_online:
+            _LOGGER.warning(
+                "Cannot set preset mode for %s - thermostat is offline",
+                self._attr_name,
+            )
+            return
+
         # Map preset mode to schedule mode
         mode_map = {
             "Auto": 1,  # Schedule
@@ -439,6 +473,14 @@ class NuheatConductorThermostat(ClimateEntity):
         if not self._thermostat_id:
             return
 
+        # Prevent changes when thermostat is offline
+        if not self._is_online:
+            _LOGGER.warning(
+                "Cannot set HVAC mode for %s - thermostat is offline",
+                self._attr_name,
+            )
+            return
+
         if hvac_mode == HVACMode.HEAT:
             if self._target_temperature:
                 await self.async_set_temperature(temperature=self._target_temperature)
@@ -453,7 +495,8 @@ class NuheatConductorThermostat(ClimateEntity):
         data = await self._api.get_thermostat_data(self._thermostat_id)
         if data:
             self._update_from_data(data)
-            # Entity stays available even if thermostat is offline
+            # Keep entity available even if thermostat is offline
+            # This allows users to see last known settings
             self._attr_available = True
         else:
             # Only mark unavailable if we can't reach the API at all

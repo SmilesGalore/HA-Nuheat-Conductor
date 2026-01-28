@@ -70,6 +70,12 @@ class NuheatConductorOAuth2FlowHandler(
         if self._async_current_entries():
             return self.async_abort(reason="single_instance_allowed")
 
+        # Check if there's an in-progress flow (happens when OAuth was interrupted)
+        if self.hass.config_entries.flow.async_progress_by_handler(DOMAIN):
+            _LOGGER.warning(
+                "Detected interrupted OAuth flow. User should restart Home Assistant before retrying."
+            )
+
         # Register our implementation
         self.async_register_implementation(
             self.hass,
@@ -97,10 +103,14 @@ class NuheatConductorOAuth2FlowHandler(
 
     async def async_oauth_create_entry(self, data: dict[str, Any]) -> ConfigFlowResult:
         """Create an entry for the flow."""
-        existing_entry = await self.async_set_unique_id(DOMAIN)
-        if existing_entry:
-            self.hass.config_entries.async_update_entry(existing_entry, data=data)
-            await self.hass.config_entries.async_reload(existing_entry.entry_id)
-            return self.async_abort(reason="reauth_successful")
+        try:
+            existing_entry = await self.async_set_unique_id(DOMAIN)
+            if existing_entry:
+                self.hass.config_entries.async_update_entry(existing_entry, data=data)
+                await self.hass.config_entries.async_reload(existing_entry.entry_id)
+                return self.async_abort(reason="reauth_successful")
 
-        return self.async_create_entry(title="Nuheat Conductor", data=data)
+            return self.async_create_entry(title="Nuheat Conductor", data=data)
+        except Exception as err:
+            _LOGGER.error("Failed to create entry after OAuth: %s", err)
+            return self.async_abort(reason="oauth_error")

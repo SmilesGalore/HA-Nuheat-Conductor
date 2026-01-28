@@ -11,14 +11,15 @@
     },
     "abort": {
       "already_configured": "This account is already configured.",
-      "already_in_progress": "Configuration flow is already in progress.",
+      "already_in_progress": "Configuration flow is already in progress. If you recently attempted setup and it failed during OAuth authentication, please restart Home Assistant and try again. Tip: Use the same device and browser for the entire OAuth flow.",
       "single_instance_allowed": "Already configured. Only a single configuration possible.",
       "oauth_error": "Received invalid token data.",
       "missing_configuration": "The Nuheat Conductor integration is not configured. Please follow the documentation.",
       "authorize_url_timeout": "Timeout generating authorize URL.",
       "no_url_available": "No URL available. For information about this error, check the help section.",
       "user_rejected_authorize": "Account linking rejected.",
-      "reauth_successful": "Re-authentication was successful."
+      "reauth_successful": "Re-authentication was successful.",
+      "oauth_timeout": "OAuth authentication timed out or was interrupted. Please restart Home Assistant and try again using the same device and browser throughout the setup process."
     },
     "create_entry": {
       "default": "Successfully authenticated with Nuheat Conductor."

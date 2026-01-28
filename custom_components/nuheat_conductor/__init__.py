@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.helpers import config_validation as cv
 
+from .config_flow import NuheatConductorLocalOAuth2Implementation
 from .const import DOMAIN
 
 PLATFORMS = [Platform.CLIMATE]
@@ -25,6 +26,14 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: NuheatConductorConfigEntry
 ) -> bool:
     """Set up Nuheat Conductor from a config entry."""
+    # Register the OAuth2 implementation
+    # This is needed on restart since implementations aren't persisted
+    config_entry_oauth2_flow.async_register_implementation(
+        hass,
+        DOMAIN,
+        NuheatConductorLocalOAuth2Implementation(hass),
+    )
+    
     implementation = (
         await config_entry_oauth2_flow.async_get_config_entry_implementation(
             hass, entry
