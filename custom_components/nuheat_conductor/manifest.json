@@ -7,5 +7,5 @@
   "issue_tracker": "https://github.com/SmilesGalore/HA-Nuheat-Conductor/issues",
   "iot_class": "cloud_polling",
   "requirements": [],
-  "version": "1.0.1"
+  "version": "1.0.0"
 }

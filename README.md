@@ -1,6 +1,8 @@
 # Nuheat Conductor Thermostat Integration for Home Assistant
 
-A custom Home Assistant integration for Nuheat Conductor radiant heating thermostats. Control and monitor your Nuheat heating systems directly from Home Assistant.
+A custom Home Assistant integration for Nuheat Conductor radiant heating thermostats. Control and monitor your Nuheat Conductor heating systems directly from Home Assistant.
+
+This integration is for Nuheat Conductor thermostats. For Nuheat Signature thermostats, please use the official Nuheat Integration in Home Assistant.
 
 ## Features
 
@@ -69,9 +71,10 @@ This integration uses OAuth2 Authorization Code flow for secure authentication:
 * Authorization happens in your web browser
 
 **Important:** For the best experience during OAuth setup:
+* Login to Home Assistant in a browser to complete the setup
+* Do not setup from the Home Assistant mobile app, as OAuth will open in your device's browser
 * Use the same device and browser throughout the entire setup process
-* If using the Home Assistant mobile app, note that OAuth will open in your device's browser
-* Complete the entire flow without switching devices or browsers
+
 
 ## Usage
 
@@ -188,15 +191,6 @@ This typically happens when:
    * Click the three dots → **Delete**
    * Restart Home Assistant
    * Add the integration again
-
-### 500 Errors During Setup
-
-**Cause:** This typically indicates the `openapi` scope is not enabled for your account
-
-**Solution:**
-* Contact Nuheat support to request API access
-* Provide them with your account email address
-* Request that they enable the `openapi` OAuth2 scope
 
 ### No Thermostats Discovered
 
