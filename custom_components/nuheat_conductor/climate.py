@@ -22,6 +22,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import API_URL, DOMAIN
+from .auth import is_token_rejected, start_reauth
 from .signalr import NuheatSignalRManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,8 +53,15 @@ class NuheatConductorAPI:
         """Make an authenticated API request."""
         try:
             access_token = await self._get_access_token()
-        except Exception:
-            _LOGGER.exception("Failed to get access token")
+        except Exception as err:
+            if is_token_rejected(err):
+                _LOGGER.error(
+                    "Nuheat rejected the saved login (%s); re-authentication required",
+                    err,
+                )
+                start_reauth(self._oauth_session)
+            else:
+                _LOGGER.exception("Failed to get access token")
             return None
 
         headers = kwargs.pop("headers", {})

@@ -23,6 +23,7 @@ from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.core import HomeAssistant
 
+from .auth import is_token_rejected, start_reauth
 from .const import API_URL
 
 _LOGGER = logging.getLogger(__name__)
@@ -135,7 +136,20 @@ class NuheatSignalRManager:
             except asyncio.CancelledError:
                 _LOGGER.debug("SignalR connection loop cancelled")
                 break
-            except Exception:
+            except Exception as err:
+                if is_token_rejected(err):
+                    # Retrying with a dead refresh token can never succeed.
+                    # Prompt the user to sign in again and stop; the entry is
+                    # reloaded (and this manager restarted) once they do.
+                    _LOGGER.error(
+                        "Nuheat rejected the saved login (%s); "
+                        "re-authentication required",
+                        err,
+                    )
+                    start_reauth(self._oauth_session)
+                    self._running = False
+                    self._connected = False
+                    break
                 _LOGGER.exception("SignalR connection error")
 
             if not self._running:

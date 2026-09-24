@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import logging
 
+from aiohttp import ClientError
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.helpers import config_validation as cv
 
+from .auth import is_token_rejected
 from .config_flow import NuheatConductorLocalOAuth2Implementation
 from .const import DOMAIN
 from .signalr import NuheatSignalRManager
@@ -46,9 +50,15 @@ async def async_setup_entry(
     # Verify we can get a valid token
     try:
         await session.async_ensure_token_valid()
-    except Exception as err:
-        _LOGGER.error("Failed to get valid token: %s", err)
-        return False
+    except (ClientError, TimeoutError) as err:
+        if is_token_rejected(err):
+            # Refresh token expired/revoked: show "Re-authenticate" in the UI
+            # instead of leaving the integration stuck in "Failed to set up".
+            raise ConfigEntryAuthFailed(
+                "Nuheat session expired, please re-authenticate"
+            ) from err
+        # Temporary problem (server error, no network): retry automatically.
+        raise ConfigEntryNotReady(f"Unable to reach Nuheat: {err}") from err
 
     # Create and start the SignalR manager for real-time notifications
     signalr_manager = NuheatSignalRManager(hass, session)

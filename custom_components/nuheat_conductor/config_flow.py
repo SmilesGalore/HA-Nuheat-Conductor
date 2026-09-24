@@ -99,7 +99,9 @@ class NuheatConductorOAuth2FlowHandler(
         """Confirm reauth dialog."""
         if user_input is None:
             return self.async_show_form(step_id="reauth_confirm")
-        return await self.async_step_user()
+        # Go straight to the OAuth step. async_step_user() would abort with
+        # "single_instance_allowed" because the entry we are fixing already exists.
+        return await super().async_step_user()
 
     async def async_oauth_create_entry(self, data: dict[str, Any]) -> ConfigFlowResult:
         """Create an entry for the flow."""
