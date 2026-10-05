@@ -36,6 +36,7 @@ SIGNALR_HUB_URL = f"{API_URL}/v1/changenotifications"
 
 # Reconnection backoff delays in seconds
 RECONNECT_DELAYS = [5, 10, 30, 60]
+STABLE_CONNECTION_SECONDS = 60
 
 # How long to wait for the WebSocket handshake to complete
 HANDSHAKE_TIMEOUT = 10
@@ -73,6 +74,7 @@ class NuheatSignalRManager:
         self._running = False
         self._connected = False
         self._reconnect_attempt = 0
+        self._connected_at: float | None = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -130,13 +132,21 @@ class NuheatSignalRManager:
         while self._running:
             try:
                 await self._connect_and_listen()
-                # Clean exit - reset the reconnect counter
-                self._reconnect_attempt = 0
             except asyncio.CancelledError:
                 _LOGGER.debug("SignalR connection loop cancelled")
                 break
             except Exception:
                 _LOGGER.exception("SignalR connection error")
+            finally:
+                # Short-lived connections must not defeat reconnect backoff.
+                if (
+                    self._connected_at is not None
+                    and asyncio.get_running_loop().time() - self._connected_at
+                    >= STABLE_CONNECTION_SECONDS
+                ):
+                    self._reconnect_attempt = 0
+                self._connected_at = None
+                self._connected = False
 
             if not self._running:
                 break
@@ -162,17 +172,6 @@ class NuheatSignalRManager:
         """Get a fresh access token from the OAuth session."""
         await self._oauth_session.async_ensure_token_valid()
         return self._oauth_session.token["access_token"]
-
-    def _token_expires_in(self) -> float:
-        """Return seconds until the current token expires, or 0 if unknown."""
-        try:
-            expires_at = self._oauth_session.token.get("expires_at", 0)
-            import time
-
-            remaining = expires_at - time.time()
-            return max(remaining, 0)
-        except Exception:
-            return 0
 
     async def _connect_and_listen(self) -> None:
         """Establish a WebSocket connection, perform the SignalR handshake,
@@ -239,21 +238,13 @@ class NuheatSignalRManager:
             await self._subscribe(ws)
 
             self._connected = True
-            self._reconnect_attempt = 0  # Reset as soon as connection succeeds
+            self._connected_at = asyncio.get_running_loop().time()
             _LOGGER.info("SignalR connected to Nuheat notification hub")
 
             # Step 4: Listen for incoming messages
             # aiohttp WSMsgType values: TEXT=1, BINARY=2, PING=9, PONG=10, CLOSE=8, ERROR=258
             async for msg in ws:
                 if not self._running:
-                    break
-
-                # Proactively reconnect 5 minutes before the token expires
-                # so the new connection uses a fresh token
-                if self._token_expires_in() < 300:
-                    _LOGGER.debug(
-                        "SignalR token expiring soon, reconnecting with fresh token"
-                    )
                     break
 
                 _LOGGER.debug(
@@ -271,6 +262,15 @@ class NuheatSignalRManager:
                     break
                 elif msg.type in (8, 9, 10):  # CLOSE, PING, PONG
                     _LOGGER.debug("SignalR WebSocket closing (type=%s)", msg.type)
+                    break
+
+                # Use HA's refresh threshold, or reconnect if polling refreshed
+                # the session token. Process this message before reconnecting.
+                if (
+                    not self._oauth_session.valid_token
+                    or self._oauth_session.token["access_token"] != token
+                ):
+                    _LOGGER.debug("SignalR reconnecting to renew authentication")
                     break
 
         self._connected = False
